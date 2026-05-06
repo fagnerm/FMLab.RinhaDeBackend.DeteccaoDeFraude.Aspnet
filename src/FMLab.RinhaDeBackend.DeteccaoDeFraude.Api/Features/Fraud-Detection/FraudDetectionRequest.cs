@@ -22,6 +22,6 @@ public record FraudDetectionRequest
     [JsonPropertyName("terminal")] 
     public required Terminal Terminal { get; init; }
 
-    [JsonPropertyName("last_transaction")] 
-    public LastTransaction? LastTransaction { get; set; }
+    [JsonPropertyName("last_transaction")]
+    public LastTransaction? LastTransaction { get; init; }
 }

@@ -9,7 +9,7 @@ public class FraudDetectionHandler(ReferenceDataService referenceData, VectorSto
     {
         var vector = Vectorize(request);
         var (approved, fraudScore) = vectorStore.Search(vector);
-        return new FraudDetectionResponse { IsFraud = approved, FraudScore = fraudScore };
+        return new FraudDetectionResponse { Approved = approved, FraudScore = fraudScore };
     }
 
     float[] Vectorize(FraudDetectionRequest r)

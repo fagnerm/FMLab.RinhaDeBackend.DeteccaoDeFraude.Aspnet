@@ -1,12 +1,21 @@
+using System.Text.Json;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.ReferenceData;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.VectorStore;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Features.Fraud_Detection;
+using FMLab.RinhaDeBackend.DeteccaoDeFraude.Features.FraudDetection;
 
 var builder = WebApplication.CreateSlimBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.PropertyNameCaseInsensitive = true;
+    o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+});
 
 builder.Services.AddSingleton<ReferenceDataService>();
 builder.Services.AddSingleton<VectorStore>();
 builder.Services.AddHostedService<VectorStoreLoader>();
+builder.Services.AddSingleton<FraudDetectionHandler>();
 
 var app = builder.Build();
 

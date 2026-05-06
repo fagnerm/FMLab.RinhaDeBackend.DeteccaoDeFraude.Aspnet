@@ -26,11 +26,11 @@ Ordem de execução definida por dependências: cada fase só começa quando a a
 
 ---
 
-## Fase 3 — Endpoints
+## Fase 3 — Endpoints ✅
 > Depende da busca vetorial para retornar resultado correto.
 
-- [ ] `POST /fraud-score` — receber payload, executar vetorização + KNN, retornar `{ approved, fraud_score }`
-- [ ] `GET /ready` — retornar `2xx` somente após o dataset estar carregado em memória
+- [x] `POST /fraud-score` — receber payload, executar vetorização + KNN, retornar `{ approved, fraud_score }`
+- [x] `GET /ready` — retornar `2xx` somente após o dataset estar carregado em memória
 
 ---
 
