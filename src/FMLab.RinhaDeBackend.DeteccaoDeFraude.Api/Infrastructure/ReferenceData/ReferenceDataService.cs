@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.Serialization;
 
 namespace FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.ReferenceData;
 
@@ -12,14 +14,21 @@ public class ReferenceDataService
     {
         var basePath = AppContext.BaseDirectory;
         MccRisk = Load<Dictionary<string, float>>("mcc_risk.json", basePath);
-        Normalization = Load<NormalizationParams>("normalization.json", basePath);
+        Normalization = Load("normalization.json", basePath, AppJsonContext.Default.NormalizationParams);
     }
 
     static T Load<T>(string fileName, string basePath)
     {
         var path = Path.Combine(basePath, "App_Data", fileName);
         using var stream = File.OpenRead(path);
-        return JsonSerializer.Deserialize<T>(stream)!;
+        return (T)JsonSerializer.Deserialize(stream, typeof(T), AppJsonContext.Default)!;
+    }
+
+    static T Load<T>(string fileName, string basePath, JsonTypeInfo<T> typeInfo)
+    {
+        var path = Path.Combine(basePath, "App_Data", fileName);
+        using var stream = File.OpenRead(path);
+        return JsonSerializer.Deserialize(stream, typeInfo)!;
     }
 }
 

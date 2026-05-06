@@ -1,8 +1,14 @@
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.Serialization;
 
 namespace FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.VectorStore;
+
+internal record VectorRow(
+    [property: JsonPropertyName("vector")] float[] Vector,
+    [property: JsonPropertyName("label")] string Label
+);
 
 public class VectorStore
 {
@@ -37,14 +43,13 @@ public class VectorStore
 
     private async Task FillFromStreamAsync(Stream stream, CancellationToken ct)
     {
-        // Pre-allocate for up to 3M rows
         _vectors = new byte[3_000_000 * Dims];
         _labels = new byte[3_000_000];
 
         int count = 0;
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-        await foreach (var row in JsonSerializer.DeserializeAsyncEnumerable<VectorRow>(stream, options, ct))
+        await foreach (var row in JsonSerializer.DeserializeAsyncEnumerable(
+                           stream, AppJsonContext.Default.VectorRow, ct))
         {
             if (row is null) continue;
 
@@ -113,9 +118,4 @@ public class VectorStore
         if (value < 0f) return Sentinel;
         return (byte)MathF.Round(MathF.Min(value, 1f) * 254f);
     }
-
-    private record VectorRow(
-        [property: JsonPropertyName("vector")] float[] Vector,
-        [property: JsonPropertyName("label")] string Label
-    );
 }
