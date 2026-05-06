@@ -1,24 +1,25 @@
 x-api: &api-base
-    build:
-      context: ./src
-      dockerfile: Dockerfile
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_HTTP_PORTS: 8080
-    networks:
-      - app-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 100M
+  build:
+    context: ./src
+    dockerfile: Dockerfile
+  environment:
+    ASPNETCORE_ENVIRONMENT: Production
+    ASPNETCORE_HTTP_PORTS: 8080
+  networks:
+    - app-network
+  restart: unless-stopped
+  deploy:
+    resources:
+      limits:
+        cpus: '0.45'
+        memory: 160M
 
 services:
 
   api1:
     <<: *api-base
     container_name: api1
+
   api2:
     <<: *api-base
     container_name: api2
@@ -32,28 +33,11 @@ services:
     depends_on:
       - api1
       - api2
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: postgres
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_PORT: ${DB_PORT}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-#      - ./infra/db:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
     deploy:
       resources:
         limits:
-          cpus: '0.50'
-          memory: 150M
+          cpus: '0.10'
+          memory: 30M
     networks:
       - app-network
     restart: unless-stopped
@@ -61,6 +45,3 @@ services:
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  postgres_data:
