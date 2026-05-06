@@ -4,6 +4,14 @@ using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.VectorStore;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Features.Fraud_Detection;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Features.FraudDetection;
 
+// Run offline index build: dotnet run -- --build-index
+if (args.Contains("--build-index"))
+{
+    var appData = Path.Combine(AppContext.BaseDirectory, "App_Data");
+    await IndexBuilder.BuildAndSaveAsync(appData);
+    return;
+}
+
 var builder = WebApplication.CreateSlimBuilder(args);
 
 builder.Services.ConfigureHttpJsonOptions(o =>
