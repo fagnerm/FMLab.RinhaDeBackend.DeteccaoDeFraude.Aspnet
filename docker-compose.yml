@@ -5,8 +5,6 @@ x-api: &api-base
   environment:
     ASPNETCORE_ENVIRONMENT: Production
     ASPNETCORE_HTTP_PORTS: 8080
-  volumes:
-    - ./resources/references.json.gz:/app/App_Data/references.json.gz:ro
   networks:
     - app-network
   restart: unless-stopped

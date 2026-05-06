@@ -487,3 +487,11 @@ $RECYCLE.BIN/
 # Data files
 /data
 /docs
+
+# Large dataset files
+**/App_Data/references.json
+**/App_Data/references.json.gz
+**/App_Data/references.csv
+resources/
+infra/db/
+.claude/
