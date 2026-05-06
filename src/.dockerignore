@@ -1,0 +1,5 @@
+**/bin/
+**/obj/
+**/App_Data/references.json
+**/App_Data/references.csv
+**/.vs/

@@ -34,13 +34,17 @@ Ordem de execução definida por dependências: cada fase só começa quando a a
 
 ---
 
-## Fase 4 — Infraestrutura
+## Fase 4 — Infraestrutura ✅
 > Pode ser preparada em paralelo com as fases anteriores, mas só é validada com a API funcional.
 
-- [ ] `docker-compose.yml` com 2 instâncias de API + nginx (round-robin, sem lógica de negócio)
-- [ ] API exposta na porta `9999`
-- [ ] Soma de limites: máximo 1 CPU + 350 MB RAM entre todos os serviços
-- [ ] Imagens compatíveis com `linux-amd64`, rede em modo `bridge`
+- [x] `docker-compose.yml` com 2 instâncias de API + nginx round-robin (sem lógica de negócio)
+- [x] API exposta na porta `9999`
+- [x] Soma de limites: 0.45+0.45+0.10=1.0 CPU, 160+160+30=350MB RAM — exatamente no limite
+- [x] Imagens `linux-amd64`, rede `bridge`
+- [x] Dockerfile corrigido (sem espaços à esquerda, build em 2 stages, sem intermediate build artifacts)
+- [x] `.dockerignore` excluindo `bin/`, `obj/`, `references.json` (284MB) — só configs pequenas entram na imagem
+- [x] `references.json.gz` montado via volume em `/app/App_Data/references.json.gz`
+- [x] `VectorStoreLoader` resiliente — falha no carregamento não derruba o host; `/ready` retorna 204
 
 ---
 
