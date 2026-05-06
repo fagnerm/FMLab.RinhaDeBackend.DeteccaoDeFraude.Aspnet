@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # Environment variable files
 .env
+
+# Data files
+/data

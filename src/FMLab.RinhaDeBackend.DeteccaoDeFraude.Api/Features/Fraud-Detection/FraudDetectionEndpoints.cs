@@ -7,11 +7,10 @@ public static class FraudDetectionEndpoints
     {
         app.MapPost("/fraud-score", async (FraudDetectionRequest request) =>
         {
-            return await Task.FromResult(Results.Ok(new FraudDetectionResponse()
-            {
-                IsFraud = true,
-                FraudScore = 0.6f
-            }));
+            var handler = new FraudDetectionHandler();
+            var response = handler.Handle(request);
+
+            return await Task.FromResult(Results.Ok(response));
         });
     }
 }

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Models;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Models;
 
 namespace FMLab.RinhaDeBackend.DeteccaoDeFraude.Features.FraudDetection;
@@ -22,5 +23,5 @@ public record FraudDetectionRequest
     public required Terminal Terminal { get; init; }
 
     [JsonPropertyName("last_transaction")] 
-    public Transaction? LastTransaction { get; init; }
+    public LastTransaction? LastTransaction { get; set; }
 }
