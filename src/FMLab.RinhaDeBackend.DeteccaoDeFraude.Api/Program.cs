@@ -28,8 +28,8 @@ builder.Services.AddSingleton<FraudDetectionHandler>();
 
 var app = builder.Build();
 
-app.MapGet("/ready", (VectorStore store) =>
-    store.IsReady ? Results.Ok("Ready") : Results.NoContent());
+app.MapGet("/ready", (VectorStore store) => store.IsReady ? Results.Ok("Ready") : Results.NoContent());
+app.MapGet("/time", () => Results.Ok("Time"));
 
 app.MapFraudDetectionEndpoints();
 

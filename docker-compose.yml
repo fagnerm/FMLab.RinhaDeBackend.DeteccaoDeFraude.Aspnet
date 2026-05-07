@@ -4,9 +4,10 @@ x-api: &api-base
     dockerfile: Dockerfile
   environment:
     ASPNETCORE_ENVIRONMENT: Production
-    ASPNETCORE_HTTP_PORTS: 8080
   networks:
     - app-network
+  volumes:
+    - sockets:/sockets
   restart: unless-stopped
   deploy:
     resources:
@@ -19,17 +20,25 @@ services:
   api1:
     <<: *api-base
     container_name: api1
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://unix:/sockets/api1.sock
 
   api2:
     <<: *api-base
     container_name: api2
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://unix:/sockets/api2.sock
 
   haproxy:
     image: haproxy:3.1-alpine
+    user: root
     ports:
       - "9999:80"
     volumes:
       - ./infra/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - sockets:/sockets
     depends_on:
       - api1
       - api2
@@ -45,3 +54,7 @@ services:
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  sockets:
+    driver: local
