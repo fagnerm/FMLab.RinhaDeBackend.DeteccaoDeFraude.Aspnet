@@ -7,41 +7,41 @@ public class FraudDetectionHandler(ReferenceDataService referenceData, VectorSto
 {
     public FraudDetectionResponse Handle(FraudDetectionRequest request)
     {
-        var vector = Vectorize(request);
+        Span<float> vector = stackalloc float[14];
+        Vectorize(request, vector);
         var (approved, fraudScore) = vectorStore.Search(vector);
         return new FraudDetectionResponse { Approved = approved, FraudScore = fraudScore };
     }
 
-    float[] Vectorize(FraudDetectionRequest r)
+    void Vectorize(FraudDetectionRequest r, Span<float> v)
     {
         var p = referenceData.Normalization;
         var requestedAt = r.Transaction.RequestedAt;
         var minutesSinceLast = r.LastTransaction is null ? -1f : (float)(requestedAt - r.LastTransaction.Timestamp).TotalMinutes;
         var kmFromLast = r.LastTransaction is null ? -1f : Clamp((float)r.LastTransaction.KmFromCurrent / p.MaxKm);
 
-        return [
-            Clamp((float)r.Transaction.Amount / p.MaxAmount).ToRound(),                                                // [0]  amount
-            Clamp((float)r.Transaction.Installments / p.MaxInstallments).ToRound(),                                    // [1]  installments
-            Clamp((float)(r.Transaction.Amount / r.Customer.AverageAmount) / p.AmountVsAvgRatio).ToRound(),            // [2]  amount_vs_avg
-            (requestedAt.Hour / 23f).ToRound(),                                                                        // [3]  hour_of_day
-            (((int)requestedAt.DayOfWeek + 6) % 7 / 6f).ToRound(),                                                    // [4]  day_of_week (seg=0)
-            minutesSinceLast < 0 ? -1f : Clamp(minutesSinceLast / p.MaxMinutes).ToRound(),                            // [5]  minutes_since_last_tx
-            kmFromLast < 0 ? -1f : kmFromLast.ToRound(),                                                              // [6]  km_from_last_tx
-            Clamp((float)r.Terminal.KmFromHome / p.MaxKm).ToRound(),                                                   // [7]  km_from_home
-            Clamp((float)r.Customer.TransactionsLast24h / p.MaxTxCount24h).ToRound(),                                  // [8]  tx_count_24h
-            r.Terminal.IsOnline ? 1f : 0f,                                                                             // [9]  is_online
-            r.Terminal.CardPresent ? 1f : 0f,                                                                          // [10] card_present
-            r.Customer.KnownMerchants.Contains(r.Merchant.Id) ? 0f : 1f,                                              // [11] unknown_merchant
-            referenceData.MccRisk.GetValueOrDefault(r.Merchant.MerchantCategoryCode, 0.50f).ToRound(),                // [12] mcc_risk
-            Clamp((float)r.Merchant.AverageAmount / p.MaxMerchantAvgAmount).ToRound(),                                 // [13] merchant_avg_amount
-        ];
+        // Cast decimal → float before arithmetic to avoid slow decimal division.
+        var amount     = (float)r.Transaction.Amount;
+        var avgAmount  = (float)r.Customer.AverageAmount;
+        var merchantAvg = (float)r.Merchant.AverageAmount;
+
+        // ToRound() removed: Quantize() in VectorStore already rounds float→byte,
+        // so rounding to 4 decimal places here is a no-op that costs 12 Math.Round calls/request.
+        v[0]  = Clamp(amount / p.MaxAmount);
+        v[1]  = Clamp((float)r.Transaction.Installments / p.MaxInstallments);
+        v[2]  = Clamp(amount / (avgAmount * p.AmountVsAvgRatio));
+        v[3]  = requestedAt.Hour / 23f;
+        v[4]  = ((int)requestedAt.DayOfWeek + 6) % 7 / 6f;
+        v[5]  = minutesSinceLast < 0 ? -1f : Clamp(minutesSinceLast / p.MaxMinutes);
+        v[6]  = kmFromLast;
+        v[7]  = Clamp((float)r.Terminal.KmFromHome / p.MaxKm);
+        v[8]  = Clamp((float)r.Customer.TransactionsLast24h / p.MaxTxCount24h);
+        v[9]  = r.Terminal.IsOnline ? 1f : 0f;
+        v[10] = r.Terminal.CardPresent ? 1f : 0f;
+        v[11] = r.Customer.KnownMerchants.Contains(r.Merchant.Id) ? 0f : 1f;
+        v[12] = referenceData.MccRisk.GetValueOrDefault(r.Merchant.MerchantCategoryCode, 0.50f);
+        v[13] = Clamp(merchantAvg / p.MaxMerchantAvgAmount);
     }
 
     static float Clamp(float value) => Math.Clamp(value, 0f, 1f);
-}
-
-public static class FloatExtensions
-{
-    public static float ToRound(this float value, int decimals = 4)
-        => (float)Math.Round(value, decimals);
 }

@@ -12,6 +12,10 @@ if (args.Contains("--build-index"))
     return;
 }
 
+// Pre-warm thread pool to avoid starvation during initial load ramp-up.
+// Without this, the runtime adds threads slowly (one per 500ms) under sudden load.
+ThreadPool.SetMinThreads(32, 32);
+
 var builder = WebApplication.CreateSlimBuilder(args);
 
 builder.Services.ConfigureHttpJsonOptions(o =>

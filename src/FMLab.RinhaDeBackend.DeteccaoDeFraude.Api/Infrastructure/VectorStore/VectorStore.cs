@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Text.Json;
@@ -47,13 +48,13 @@ public class VectorStore
     private const byte Sentinel       = 255;
 
     // Número de centroides do índice IVF (coarse quantizer).
-    private const int NCC             = 200;
+    private const int NCC             = 500;
 
     // Iterações do K-means ao construir o índice em tempo de execução (sem arquivo .idx).
     private const int KMeansIterations = 5;
 
     // Quantos clusters vizinhos são varridos na busca (tradeoff recall × latência).
-    private const int SearchClusters  = 1;
+    private const int SearchClusters  = 10;
 
     // Centroides do índice IVF em forma quantizada (NCC × Stride bytes).
     private byte[] _centroids = [];
@@ -82,35 +83,34 @@ public class VectorStore
     public async Task LoadAsync(CancellationToken ct = default)
     {
         var basePath = AppContext.BaseDirectory;
-
-        // Caminhos dos arquivos de dados — gzip tem prioridade por menor I/O.
-        var gzPath   = Path.Combine(basePath, "App_Data", "references.json.gz");
-        var jsonPath  = Path.Combine(basePath, "App_Data", "references.json");
         var idxPath  = Path.Combine(basePath, "App_Data", "references.idx");
 
-        // Abre o stream descomprimindo on-the-fly se o arquivo gzip existir.
-        Stream fileStream = File.Exists(gzPath)
-            ? new GZipStream(File.OpenRead(gzPath), CompressionMode.Decompress)
-            : File.OpenRead(jsonPath);
-
-        byte[] tmpVec; // buffer temporário com todos os vetores quantizados
-        byte[] tmpLbl; // rótulos temporários paralelos a tmpVec
-        int    count;  // número real de vetores lidos
-
-        // Lê e fecha o stream antes de montar o índice — libera o handle do arquivo.
-        await using (fileStream)
-            (tmpVec, tmpLbl, count) = await LoadRawAsync(fileStream, ct);
-
-        _count = count;
-
-        // Usa o índice pré-computado se existir; caso contrário, roda K-means localmente.
         if (File.Exists(idxPath))
-            BuildIvfIndexFromFile(tmpVec, tmpLbl, count, idxPath);
+        {
+            // Caminho rápido: lê tudo do binário pré-computado — sem JSON, sem GZ, sem parsing.
+            BuildIvfIndexFromFile(idxPath);
+        }
         else
-            BuildIvfIndex(tmpVec, tmpLbl, count);
+        {
+            // Fallback: carrega JSON e roda K-means localmente (sem arquivo .idx).
+            var gzPath   = Path.Combine(basePath, "App_Data", "references.json.gz");
+            var jsonPath  = Path.Combine(basePath, "App_Data", "references.json");
 
-        // Publica a prontidão — escrita volatile garante que todos os campos acima
-        // sejam visíveis para qualquer thread que leia _ready == true.
+            Stream fileStream = File.Exists(gzPath)
+                ? new GZipStream(File.OpenRead(gzPath), CompressionMode.Decompress)
+                : File.OpenRead(jsonPath);
+
+            byte[] tmpVec;
+            byte[] tmpLbl;
+            int    count;
+            await using (fileStream)
+                (tmpVec, tmpLbl, count) = await LoadRawAsync(fileStream, ct);
+
+            _count = count;
+            BuildIvfIndex(tmpVec, tmpLbl, count);
+        }
+
+        // Escrita volatile garante visibilidade imediata entre threads.
         _ready = true;
     }
 
@@ -118,7 +118,7 @@ public class VectorStore
     /// Classifica uma transação como aprovada ou fraudulenta usando KNN sobre o índice IVF.
     /// Thread-safe após _ready ser true.
     /// </summary>
-    public (bool Approved, float FraudScore) Search(float[] query)
+    public (bool Approved, float FraudScore) Search(ReadOnlySpan<float> query)
     {
         // Antes do índice estar pronto retorna aprovação (score 0) —
         // peso de falso positivo (1) < peso de falso negativo (3), então aprovar é o menor risco.
@@ -245,36 +245,43 @@ public class VectorStore
     // ── IVF / K-means build ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Carrega centroides e atribuições de cluster do arquivo .idx pré-computado
-    /// e monta os arrays de cluster sem rodar K-means.
+    /// Carrega tudo do arquivo RIF3: centroides, assignments, vetores e rótulos.
+    /// Não requer leitura de JSON — startup reduzido a leitura sequencial binária.
     /// </summary>
-    void BuildIvfIndexFromFile(byte[] vecs, byte[] lbls, int count, string idxPath)
+    void BuildIvfIndexFromFile(string idxPath)
     {
         using var fs = File.OpenRead(idxPath);
 
-        // Lê o cabeçalho de 12 bytes: magic (4) + NCC (4) + count (4).
+        // Cabeçalho: magic (4) + NCC (4) + count (4) = 12 bytes.
         Span<byte> header = stackalloc byte[12];
         fs.ReadExactly(header);
 
-        // Valida a assinatura — protege contra arquivos corrompidos ou de outro formato.
-        if (header[0] != 'R' || header[1] != 'I' || header[2] != 'F' || header[3] != 'V')
-            throw new InvalidDataException("Invalid index file magic.");
+        if (header[0] != 'R' || header[1] != 'I' || header[2] != 'F' || header[3] != '3')
+            throw new InvalidDataException("Invalid index file magic. Expected RIF3.");
 
-        // Lê NCC e count do cabeçalho e confere compatibilidade com as constantes atuais.
         int ncc   = BitConverter.ToInt32(header[4..8]);
-        int cnt   = BitConverter.ToInt32(header[8..12]);
-        if (ncc != NCC || cnt != count)
-            throw new InvalidDataException($"Index mismatch: ncc={ncc}/{NCC}, count={cnt}/{count}.");
+        int count = BitConverter.ToInt32(header[8..12]);
+        if (ncc != NCC)
+            throw new InvalidDataException($"Index NCC mismatch: file={ncc}, expected={NCC}.");
 
-        // Lê os NCC centroides quantizados em byte diretamente para o campo do objeto.
+        _count = count;
+
+        // Centroides quantizados em byte.
         _centroids = new byte[NCC * Stride];
         fs.ReadExactly(_centroids);
 
-        // Lê as atribuições de cluster: assignments[i] = índice do cluster do vetor i.
-        var assignments = new byte[count];
-        fs.ReadExactly(assignments);
+        // Atribuições de cluster em ushort (suporta NCC até 65535).
+        var assignments = new ushort[count];
+        fs.ReadExactly(MemoryMarshal.AsBytes(assignments.AsSpan()));
 
-        // Organiza os vetores por cluster em arrays contíguos para scan cache-friendly.
+        // Vetores quantizados — leitura sequencial binária, sem JSON nem GZ.
+        var vecs = new byte[count * Stride];
+        fs.ReadExactly(vecs);
+
+        // Rótulos binários (0=legítimo, 1=fraude).
+        var lbls = new byte[count];
+        fs.ReadExactly(lbls);
+
         BuildClusterArrays(vecs, lbls, count, assignments);
     }
 
@@ -343,19 +350,19 @@ public class VectorStore
             }
         }
 
-        // Converte as atribuições de int para byte (NCC ≤ 200 cabe em um byte).
-        var byteAssignments = new byte[count];
-        for (int i = 0; i < count; i++) byteAssignments[i] = (byte)assignments[i];
+        // Converte as atribuições de int para ushort (suporta NCC até 65535).
+        var ushortAssignments = new ushort[count];
+        for (int i = 0; i < count; i++) ushortAssignments[i] = (ushort)assignments[i];
 
         // Organiza os vetores por cluster.
-        BuildClusterArrays(vecs, lbls, count, byteAssignments);
+        BuildClusterArrays(vecs, lbls, count, ushortAssignments);
     }
 
     /// <summary>
     /// Reorganiza os vetores e rótulos em arrays contíguos por cluster,
     /// habilitando scan sequencial cache-friendly durante a busca.
     /// </summary>
-    void BuildClusterArrays(byte[] vecs, byte[] lbls, int count, byte[] assignments)
+    void BuildClusterArrays(byte[] vecs, byte[] lbls, int count, ushort[] assignments)
     {
         // Conta quantos vetores cada cluster terá para pré-alocar os arrays exatos.
         var clusterSizes = new int[NCC];
@@ -366,16 +373,16 @@ public class VectorStore
         _clusterLabels = new byte[NCC][];
         for (int c = 0; c < NCC; c++)
         {
-            _clusterVecs[c]   = new byte[clusterSizes[c] * Stride]; // vetores do cluster c
-            _clusterLabels[c] = new byte[clusterSizes[c]];           // rótulos do cluster c
+            _clusterVecs[c]   = new byte[clusterSizes[c] * Stride];
+            _clusterLabels[c] = new byte[clusterSizes[c]];
         }
 
         // Copia cada vetor e seu rótulo para a posição correta dentro do cluster.
-        var fill = new int[NCC]; // próxima posição livre em cada cluster
+        var fill = new int[NCC];
         for (int i = 0; i < count; i++)
         {
-            int c   = assignments[i]; // cluster de destino
-            int pos = fill[c]++;      // posição dentro do cluster (pós-incremento)
+            int c   = assignments[i]; // ushort promovido a int automaticamente
+            int pos = fill[c]++;
 
             // Copia o bloco de Stride bytes do buffer global para o buffer do cluster.
             Buffer.BlockCopy(vecs, i * Stride, _clusterVecs[c], pos * Stride, Stride);
@@ -393,11 +400,12 @@ public class VectorStore
 
     /// <summary>
     /// Distância quadrada entre vetor de consulta int16 (q) e vetor armazenado byte (store[off..]).
-    /// Caminho quente da busca — despacha para SSE2 ou scalar conforme suporte da CPU.
+    /// Caminho quente da busca — despacha para AVX2, SSE2 ou scalar conforme suporte da CPU.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static int DistSq_SB(ReadOnlySpan<short> q, byte[] store, int off)
     {
+        if (Avx2.IsSupported) return DistSq_SB_Avx2(q, store, off);
         if (Sse2.IsSupported) return DistSq_SB_Sse2(q, store, off);
         return DistSq_SB_Scalar(q, store, off);
     }
@@ -437,6 +445,41 @@ public class VectorStore
             s = Sse2.Add(s, Sse2.Shuffle(s, 0b_01_00_11_10)); // swap pares de lanes
             s = Sse2.Add(s, Sse2.Shuffle(s, 0b_00_00_00_01)); // soma lane 1 na lane 0
             return s.GetElement(0); // resultado final na lane 0
+        }
+    }
+
+    /// <summary>
+    /// Versão AVX2 de DistSq_SB: expande 16 bytes para int16 via UnpackLow/High,
+    /// combina em Vector256 e usa uma única VPMADDWD de 256 bits — ~2x menos instruções que SSE2.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static unsafe int DistSq_SB_Avx2(ReadOnlySpan<short> q, byte[] store, int off)
+    {
+        fixed (short* qp = q)
+        fixed (byte*  sp = &store[off])
+        {
+            var sb   = Sse2.LoadVector128(sp);
+            var zero = Vector128<byte>.Zero;
+
+            // Expande 16 bytes para 16 × int16 via dois UnpackLow/High de 128 bits.
+            var sL   = Sse2.UnpackLow (sb, zero).AsInt16();
+            var sH   = Sse2.UnpackHigh(sb, zero).AsInt16();
+            var sExt = Vector256.Create(sL, sH);              // 16 × int16 em 256 bits
+
+            // Carrega os 16 shorts da query de uma vez (256 bits).
+            var qVec = Avx.LoadVector256(qp);
+
+            // Subtrai, eleva ao quadrado e soma pares — tudo em 256 bits (1 instrução VPMADDWD).
+            var diff = Avx2.Subtract(qVec, sExt);
+            var sq   = Avx2.MultiplyAddAdjacent(diff, diff);  // 8 × int32
+
+            // Horizontal sum: reduz 8 int32 (256 bits) para escalar.
+            var lo  = sq.GetLower();
+            var hi  = sq.GetUpper();
+            var sum = Sse2.Add(lo, hi);
+            sum = Sse2.Add(sum, Sse2.Shuffle(sum, 0b_01_00_11_10));
+            sum = Sse2.Add(sum, Sse2.Shuffle(sum, 0b_00_00_00_01));
+            return sum.GetElement(0);
         }
     }
 
