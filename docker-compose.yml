@@ -1,0 +1,58 @@
+x-api: &api-base
+  image: ghcr.io/fagnerm/fmlab-rinha-fraude:latest
+  environment:
+    ASPNETCORE_ENVIRONMENT: Production
+  networks:
+    - app-network
+  volumes:
+    - sockets:/sockets
+  restart: unless-stopped
+  deploy:
+    resources:
+      limits:
+        cpus: '0.45'
+        memory: 165M
+
+services:
+
+  api1:
+    <<: *api-base
+    container_name: api1
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      SOCKET_PATH: /sockets/api1.sock
+
+  api2:
+    <<: *api-base
+    container_name: api2
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      SOCKET_PATH: /sockets/api2.sock
+
+  haproxy:
+    image: haproxy:3.1-alpine
+    user: root
+    ports:
+      - "9999:80"
+    volumes:
+      - ./infra/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - sockets:/sockets
+    depends_on:
+      - api1
+      - api2
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 20M
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  sockets:
+    driver: local
