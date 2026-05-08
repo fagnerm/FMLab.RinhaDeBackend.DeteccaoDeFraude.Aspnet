@@ -11,9 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="App_Data\references.json.gz">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="App_Data\references.idx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
