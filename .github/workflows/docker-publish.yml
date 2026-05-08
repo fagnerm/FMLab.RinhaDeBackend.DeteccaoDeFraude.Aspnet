@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - performance
   workflow_dispatch:
 
 env:
