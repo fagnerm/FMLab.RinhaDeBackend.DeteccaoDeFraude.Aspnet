@@ -1,6 +1,6 @@
 {
     "participants": ["Fagner Marinho"],
-    "social": ["https://github.com/fagnerm"],
+    "social": ["https://github.com/fagnerm", "https://www.linkedin.com/in/fagnermarinho"],
     "source-code-repo": "https://github.com/fagnerm/FMLab.RinhaDeBackend.DeteccaoDeFraude.Dotnet",
     "stack": ["dotnet", "csharp", "haproxy"],
     "open_to_work": true
