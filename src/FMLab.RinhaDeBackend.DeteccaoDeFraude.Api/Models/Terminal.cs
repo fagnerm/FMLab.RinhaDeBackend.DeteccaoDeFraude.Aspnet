@@ -10,5 +10,5 @@ public class Terminal
     public bool CardPresent { get; init; }
 
     [JsonPropertyName("km_from_home")]
-    public decimal KmFromHome { get; init; }
+    public double KmFromHome { get; init; }
 }

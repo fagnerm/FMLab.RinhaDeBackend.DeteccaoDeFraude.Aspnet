@@ -5,7 +5,7 @@ namespace FMLab.RinhaDeBackend.DeteccaoDeFraude.Models;
 public class Customer
 {
     [JsonPropertyName("avg_amount")]
-    public decimal AverageAmount { get; init; }
+    public double AverageAmount { get; init; }
     
     [JsonPropertyName("tx_count_24h")]
     public int TransactionsLast24h { get; init; }

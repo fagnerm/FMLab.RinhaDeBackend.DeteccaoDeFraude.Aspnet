@@ -11,5 +11,5 @@ public class Merchant
     public required string MerchantCategoryCode { get; init; }
 
     [JsonPropertyName("avg_amount")]    
-    public required decimal AverageAmount { get; init; }
+    public required double AverageAmount { get; init; }
 }

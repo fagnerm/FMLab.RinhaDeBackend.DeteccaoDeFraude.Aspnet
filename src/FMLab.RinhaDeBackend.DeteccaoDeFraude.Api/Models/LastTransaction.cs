@@ -8,6 +8,6 @@ namespace FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Models
         public DateTime Timestamp { get; init; }
 
         [JsonPropertyName("km_from_current")]       
-        public decimal KmFromCurrent { get; init; }
+        public double KmFromCurrent { get; init; }
     }
 }

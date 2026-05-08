@@ -5,7 +5,7 @@ namespace FMLab.RinhaDeBackend.DeteccaoDeFraude.Models;
 public class Transaction
 {
     [JsonPropertyName("amount")]
-    public decimal Amount { get; set; }
+    public double Amount { get; set; }
 
     [JsonPropertyName("installments")]
     public int Installments { get; set; }
