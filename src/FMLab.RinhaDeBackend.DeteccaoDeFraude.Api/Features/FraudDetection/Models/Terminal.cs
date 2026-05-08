@@ -1,0 +1,14 @@
+using System.Text.Json.Serialization;
+
+namespace FMLab.RinhaDeBackend.DeteccaoDeFraude.Features.FraudDetection;
+public class Terminal
+{
+    [JsonPropertyName("is_online")]
+    public bool IsOnline { get; init; }
+
+    [JsonPropertyName("card_present")]
+    public bool CardPresent { get; init; }
+
+    [JsonPropertyName("km_from_home")]
+    public double KmFromHome { get; init; }
+}

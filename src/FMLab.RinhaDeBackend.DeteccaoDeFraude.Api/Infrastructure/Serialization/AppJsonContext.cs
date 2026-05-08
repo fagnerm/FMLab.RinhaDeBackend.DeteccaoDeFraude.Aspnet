@@ -1,9 +1,7 @@
 using System.Text.Json.Serialization;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.ReferenceData;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.VectorStore;
-using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Models;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Features.FraudDetection;
-using FMLab.RinhaDeBackend.DeteccaoDeFraude.Models;
 
 namespace FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.Serialization;
 
