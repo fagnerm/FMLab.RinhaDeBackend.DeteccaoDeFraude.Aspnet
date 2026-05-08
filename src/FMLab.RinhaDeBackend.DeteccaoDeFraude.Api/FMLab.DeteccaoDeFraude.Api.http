@@ -1,4 +1,8 @@
 @baseUrl = http://localhost:9999
+
+### Get Ping
+GET {{baseUrl}}/ping
+
 ### Get Ready
 GET {{baseUrl}}/ready
 

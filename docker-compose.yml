@@ -22,14 +22,14 @@ services:
     container_name: api1
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://unix:/sockets/api1.sock
+      SOCKET_PATH: /sockets/api1.sock
 
   api2:
     <<: *api-base
     container_name: api2
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://unix:/sockets/api2.sock
+      SOCKET_PATH: /sockets/api2.sock
 
   haproxy:
     image: haproxy:3.1-alpine

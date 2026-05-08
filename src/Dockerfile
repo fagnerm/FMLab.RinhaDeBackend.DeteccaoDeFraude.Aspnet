@@ -1,16 +1,23 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-ARG BUILD_CONFIGURATION=Release
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clang \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 
-COPY ["Directory.Packages.props", "."]
-COPY ["FMLab.RinhaDeBackend.DeteccaoDeFraude.Api/FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.csproj", "FMLab.RinhaDeBackend.DeteccaoDeFraude.Api/"]
-RUN dotnet restore "FMLab.RinhaDeBackend.DeteccaoDeFraude.Api/FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.csproj"
+COPY ["FMLab.RinhaDeBackend.DeteccaoDeFraude.Api", "FMLab.RinhaDeBackend.DeteccaoDeFraude.Api"]
 
-COPY . .
+RUN dotnet restore "FMLab.RinhaDeBackend.DeteccaoDeFraude.Api/FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.csproj" \
+    -r linux-x64
+
+COPY / /
+
 RUN dotnet publish "FMLab.RinhaDeBackend.DeteccaoDeFraude.Api/FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.csproj" \
-    -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+    -c Release \
+    -r linux-x64 \
+    -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.dll"]
+ENTRYPOINT ["./FMLab.RinhaDeBackend.DeteccaoDeFraude.Api"]
