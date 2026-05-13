@@ -32,4 +32,5 @@ RUN SRC="/src/FMLab.RinhaDeBackend.DeteccaoDeFraude.Api/App_Data/references.json
 FROM alpine:3.21 AS final
 WORKDIR /app
 COPY --from=build /app/publish/FMLab.RinhaDeBackend.DeteccaoDeFraude.Api .
+COPY --from=build /app/publish/App_Data ./App_Data
 ENTRYPOINT ["./FMLab.RinhaDeBackend.DeteccaoDeFraude.Api"]

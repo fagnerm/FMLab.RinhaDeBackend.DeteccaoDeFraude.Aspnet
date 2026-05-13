@@ -10,15 +10,12 @@ if (args.Contains("--build-index"))
     var appData = Path.Combine(AppContext.BaseDirectory, "App_Data");
     await IndexBuilder.BuildAndSaveAsync(appData);
 
-    var projectRoot = Path.Combine(Directory.GetParent(AppContext.BaseDirectory)!.Parent!.Parent!.Parent!.FullName, "App_Data");
-    File.Copy(Path.Combine(appData, "references.idx"), Path.Combine(projectRoot, "references.idx"), overwrite: true);
-
-    Console.WriteLine("Copying references.idx to APP_Data project root folder: " + projectRoot);
     return;
 }
 
 var builder = WebApplication.CreateSlimBuilder(args);
 builder.Logging.ClearProviders();
+
 var socketPath = Environment.GetEnvironmentVariable("SOCKET_PATH");
 if (!string.IsNullOrEmpty(socketPath))
 {
@@ -26,25 +23,24 @@ if (!string.IsNullOrEmpty(socketPath))
     builder.WebHost.ConfigureKestrel(k => k.ListenUnixSocket(socketPath));
 }
 
-
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default));
 
 builder.Services.AddSingleton<ReferenceDataService>();
 builder.Services.AddSingleton<VectorStore>();
-builder.Services.AddHostedService<VectorStoreLoader>();
 builder.Services.AddSingleton<FraudDetectionHandler>();
 
 var app = builder.Build();
 
+await app.Services.GetRequiredService<VectorStore>().LoadAsync();
+
 if (!string.IsNullOrEmpty(socketPath))
 {
     app.Lifetime.ApplicationStarted.Register(() =>
-    {
-        if (File.Exists(socketPath))
-            File.SetUnixFileMode(socketPath,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
-                UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute);
-    });
+        File.SetUnixFileMode(socketPath,
+            UnixFileMode.UserRead  | UnixFileMode.UserWrite  |
+            UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
+            UnixFileMode.OtherRead | UnixFileMode.OtherWrite));
 }
 
 app.Use(async (ctx, next) =>

@@ -117,7 +117,7 @@ public class VectorStore
 
     /// <summary>
     /// Carrega o índice IVF do disco (references.idx) ou o constrói a partir do JSON.
-    /// Chamado uma única vez pelo VectorStoreLoader (IHostedService) no startup.
+    /// Chamado uma única vez no startup, antes de app.Run().
     /// </summary>
     public async Task LoadAsync(CancellationToken ct = default)
     {
