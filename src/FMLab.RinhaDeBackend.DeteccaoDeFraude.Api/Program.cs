@@ -26,13 +26,14 @@ if (!string.IsNullOrEmpty(socketPath))
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default));
 
-builder.Services.AddSingleton<ReferenceDataService>();
-builder.Services.AddSingleton<VectorStore>();
-builder.Services.AddSingleton<FraudDetectionHandler>();
+var referenceData = new ReferenceDataService();
+var vectorStore   = new VectorStore();
+var responseTable = new FraudResponseTable();
+var handler       = new FraudDetectionHandler(referenceData, vectorStore, responseTable);
+
+await vectorStore.LoadAsync();
 
 var app = builder.Build();
-
-await app.Services.GetRequiredService<VectorStore>().LoadAsync();
 
 if (!string.IsNullOrEmpty(socketPath))
 {
@@ -47,7 +48,6 @@ app.Use(async (ctx, next) =>
 {
     if (ctx.Request.Path == "/fraud-score")
     {
-        var handler = ctx.RequestServices.GetRequiredService<FraudDetectionHandler>();
         var request = await ctx.Request.ReadFromJsonAsync(AppJsonContext.Default.FraudDetectionRequest);
         var bytes = handler.Handle(request!);
         ctx.Response.StatusCode = 200;
@@ -60,8 +60,19 @@ app.Use(async (ctx, next) =>
         ctx.Response.StatusCode = 200;
         return;
     }
+    if (ctx.Request.Path == "/ready")
+    {
+        if (vectorStore.IsReady)
+        {
+            ctx.Response.StatusCode = 200;
+            await ctx.Response.WriteAsync("Ready");
+            return;
+        }
+
+        ctx.Response.StatusCode = 204;
+        return;
+    }
     await next(ctx);
 });
-app.MapGet("/ready", (VectorStore store) => store.IsReady ? Results.Ok("Ready") : Results.NoContent());
 
 app.Run();

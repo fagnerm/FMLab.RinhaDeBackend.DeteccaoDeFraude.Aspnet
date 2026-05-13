@@ -8,11 +8,11 @@
 //   BUILD  – K-means agrupa os 3M vetores em NCC=500 clusters.
 //            Cada vetor é atribuído ao centroide mais próximo e armazenado
 //            na lista invertida (inverted list) desse cluster.
-//   SEARCH – Quantizamos a query, achamos os SearchClusters=5 centroides
+//   SEARCH – Quantizamos a query, achamos os SearchClusters=20 centroides
 //            mais próximos e varremos apenas os vetores nesses clusters.
 //            Com NCC=500 e 3M vetores, cada cluster tem ~6 000 vetores.
-//            Custo: 500 (centroide scan) + 5×6000 (vetores) = 30 500 comparações.
-//            Speedup ~100× versus KNN exato, com pequena perda de recall.
+//            Custo: 500 (centroide scan) + 20×6000 (vetores) = 120 500 comparações.
+//            Speedup ~25× versus KNN exato, com perda de recall mínima.
 //
 // Quantização: float [0,1] → byte [0,254] via round(v × 254).
 //              Valor negativo → byte 255 (Sentinel) — fora do range esperado.
@@ -76,7 +76,7 @@ public class VectorStore
     // Quantos centroides varremos na busca ANN.
     // SearchClusters=5 → varremos os 5 clusters mais próximos da query.
     // Tradeoff: mais clusters = maior recall, maior latência.
-    private const int SearchClusters = 5;
+    private const int SearchClusters = 20;
 
     // ── Arrays de dados ──────────────────────────────────────────────────────────
 

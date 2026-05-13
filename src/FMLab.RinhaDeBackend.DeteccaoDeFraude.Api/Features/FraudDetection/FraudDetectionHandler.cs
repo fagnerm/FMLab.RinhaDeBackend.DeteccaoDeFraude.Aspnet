@@ -1,25 +1,20 @@
-using System.Text.Json;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.ReferenceData;
-using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.Serialization;
 using FMLab.RinhaDeBackend.DeteccaoDeFraude.Api.Infrastructure.VectorStore;
 
 namespace FMLab.RinhaDeBackend.DeteccaoDeFraude.Features.FraudDetection;
 
-public class FraudDetectionHandler(ReferenceDataService referenceData, VectorStore vectorStore)
+public class FraudDetectionHandler(
+    ReferenceDataService referenceData,
+    VectorStore vectorStore,
+    FraudResponseTable responseTable)
 {
-    // K=5 → fraud counts 0-5 → 6 respostas possíveis, pré-serializadas no startup.
-    // fraudCount < 3 equivale a fraudScore (fraudCount/5) < 0.6.
-    private static readonly ReadOnlyMemory<byte>[] Responses = Enumerable.Range(0, 6)
-        .Select(i => (ReadOnlyMemory<byte>)JsonSerializer.SerializeToUtf8Bytes(
-            new FraudDetectionResponse { Approved = i < 3, FraudScore = (float)i / 5 },
-            AppJsonContext.Default.FraudDetectionResponse))
-        .ToArray();
+    private readonly ReadOnlyMemory<byte>[] _responses = responseTable.Responses;
 
     public ReadOnlyMemory<byte> Handle(FraudDetectionRequest request)
     {
         Span<float> vector = stackalloc float[14];
         Vectorize(request, vector);
-        return Responses[vectorStore.Search(vector)];
+        return _responses[vectorStore.Search(vector)];
     }
 
     void Vectorize(FraudDetectionRequest r, Span<float> v)
