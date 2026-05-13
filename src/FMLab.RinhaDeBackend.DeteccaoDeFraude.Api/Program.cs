@@ -17,35 +17,16 @@ if (args.Contains("--build-index"))
     return;
 }
 
-// Pre-warm thread pool to avoid starvation during initial load ramp-up.
-// Without this, the runtime adds threads slowly (one per 500ms) under sudden load.
-ThreadPool.SetMinThreads(32, 32);
-
 var builder = WebApplication.CreateSlimBuilder(args);
-builder.WebHost.ConfigureKestrel(options =>
+builder.Logging.ClearProviders();
+var socketPath = Environment.GetEnvironmentVariable("SOCKET_PATH");
+if (!string.IsNullOrEmpty(socketPath))
 {
-    options.AddServerHeader = false;
-    options.Limits.MaxConcurrentConnections = null;
-    options.Limits.MaxRequestBodySize = 8_192;
-    options.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(120);
-    options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(5);
+    if (File.Exists(socketPath)) File.Delete(socketPath);
+    builder.WebHost.ConfigureKestrel(k => k.ListenUnixSocket(socketPath));
+}
 
-    var socketPath = Environment.GetEnvironmentVariable("SOCKET_PATH");
-    if (!string.IsNullOrEmpty(socketPath))
-        options.ListenUnixSocket(socketPath);
-    else
-        options.ListenAnyIP(8080);
-});
 
-builder.Services.Configure<SocketTransportOptions>(options =>
-{
-    options.NoDelay = true;
-    options.IOQueueCount = Environment.ProcessorCount;
-    options.WaitForDataBeforeAllocatingBuffer = true;
-});
-
-builder.Services.ConfigureHttpJsonOptions(o =>
-    o.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default));
 
 builder.Services.AddSingleton<ReferenceDataService>();
 builder.Services.AddSingleton<VectorStore>();
@@ -54,14 +35,16 @@ builder.Services.AddSingleton<FraudDetectionHandler>();
 
 var app = builder.Build();
 
-var socketPath = Environment.GetEnvironmentVariable("SOCKET_PATH");
 if (!string.IsNullOrEmpty(socketPath))
 {
     app.Lifetime.ApplicationStarted.Register(() =>
-        File.SetUnixFileMode(socketPath,
-            UnixFileMode.UserRead  | UnixFileMode.UserWrite  |
-            UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
-            UnixFileMode.OtherRead | UnixFileMode.OtherWrite));
+    {
+        if (File.Exists(socketPath))
+            File.SetUnixFileMode(socketPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
+                UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute);
+    });
 }
 
 app.Use(async (ctx, next) =>

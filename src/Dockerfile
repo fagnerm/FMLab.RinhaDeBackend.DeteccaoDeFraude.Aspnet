@@ -1,8 +1,5 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
-RUN apk add --no-cache \
-    clang \
-    build-base \
-    zlib-dev
+FROM mcr.microsoft.com/dotnet/sdk:11.0-preview-alpine AS build
+RUN apk add --no-cache clang zlib-dev musl-dev
 WORKDIR /src
 
 COPY ["FMLab.RinhaDeBackend.DeteccaoDeFraude.Api", "FMLab.RinhaDeBackend.DeteccaoDeFraude.Api"]
@@ -32,7 +29,7 @@ RUN SRC="/src/FMLab.RinhaDeBackend.DeteccaoDeFraude.Api/App_Data/references.json
         echo "references.json.gz ausente — usando references.idx pré-construído"; \
     fi
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-alpine AS final
+FROM alpine:3.21 AS final
 WORKDIR /app
-COPY --from=build /app/publish .
+COPY --from=build /app/publish/FMLab.RinhaDeBackend.DeteccaoDeFraude.Api .
 ENTRYPOINT ["./FMLab.RinhaDeBackend.DeteccaoDeFraude.Api"]
