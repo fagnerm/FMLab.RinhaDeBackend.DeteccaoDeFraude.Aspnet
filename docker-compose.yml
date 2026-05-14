@@ -1,5 +1,5 @@
 x-api: &api-base
-  image: ghcr.io/fagnerm/fmlab-rinha-fraude:latest
+  image: ghcr.io/fagnerm/fmlab-rinha-fraude:13ab445
   user: root
   environment:
     ASPNETCORE_ENVIRONMENT: Production
