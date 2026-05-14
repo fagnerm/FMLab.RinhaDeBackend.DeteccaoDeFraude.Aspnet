@@ -11,8 +11,8 @@ x-api: &api-base
     deploy:
       resources:
         limits:
-          cpus: '0.4'
-          memory: 160M
+          cpus: '0.45'
+          memory: 165M
 
 services:
 
@@ -32,24 +32,26 @@ services:
       SOCKET_PATH: /sockets/api2.sock
     cpuset: "2,3"
 
-  nginx:
-    image: nginx:alpine
+  haproxy:
+    image: haproxy:3.1-alpine
+    user: root
     ports:
-      - "9999:8080"
+      - "9999:80"
     volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./infra/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       - sockets:/sockets
     depends_on:
       - api1
       - api2
     networks:
       - app-network
+    restart: unless-stopped
     cpuset: "0,2"
     deploy:
       resources:
         limits:
-          cpus: '0.2'
-          memory: 30M
+          cpus: '0.10'
+          memory: 20M
 
 networks:
   app-network:
@@ -58,7 +60,3 @@ networks:
 volumes:
   sockets:
     driver: local
-    driver_opts:
-      type: tmpfs
-      device: tmpfs
-      o: "size=4m,mode=0777"
