@@ -1,7 +1,7 @@
 x-api: &api-base
-  image: ghcr.io/fagnerm/fmlab-rinha-fraude:latest
-  environment:
-    ASPNETCORE_ENVIRONMENT: Production
+  build:
+    context: ./src
+    dockerfile: Dockerfile
   networks:
     - app-network
   volumes:
@@ -20,13 +20,13 @@ services:
     container_name: api1
     environment:
       SOCKET_PATH: /sockets/api1.sock
-
+    cpuset: "0,1"
   api2:
     <<: *api-base
     container_name: api2
     environment:
       SOCKET_PATH: /sockets/api2.sock
-
+    cpuset: "2,3"
   haproxy:
     image: haproxy:3.1-alpine
     user: root
@@ -41,6 +41,7 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    cpuset: "0,2"
     deploy:
       resources:
         limits:
