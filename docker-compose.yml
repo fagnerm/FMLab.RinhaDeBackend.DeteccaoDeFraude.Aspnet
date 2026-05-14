@@ -1,5 +1,6 @@
 x-api: &api-base
   image: ghcr.io/fagnerm/fmlab-rinha-fraude:latest
+  user: root
   environment:
     ASPNETCORE_ENVIRONMENT: Production
   networks:
@@ -21,6 +22,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       SOCKET_PATH: /sockets/api1.sock
+    cpuset: "0,1"
 
   api2:
     <<: *api-base
@@ -28,6 +30,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       SOCKET_PATH: /sockets/api2.sock
+    cpuset: "2,3"
 
   haproxy:
     image: haproxy:3.1-alpine
@@ -43,6 +46,7 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    cpuset: "0,2"
     deploy:
       resources:
         limits:
@@ -56,3 +60,7 @@ networks:
 volumes:
   sockets:
     driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=4m,mode=0777"
