@@ -32,13 +32,12 @@ services:
       SOCKET_PATH: /sockets/api2.sock
     cpuset: "2,3"
 
-  haproxy:
-    image: haproxy:3.1-alpine
-    user: root
+  nginx:
+    image: nginx:alpine
     ports:
       - "9999:80"
     volumes:
-      - ./infra/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./infra/nginx/nginx.cfg:/etc/nginx/nginx.conf:ro
       - sockets:/sockets
     depends_on:
       - api1
