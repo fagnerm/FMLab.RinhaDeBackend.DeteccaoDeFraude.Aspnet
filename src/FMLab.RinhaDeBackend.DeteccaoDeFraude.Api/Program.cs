@@ -55,24 +55,9 @@ app.Use(async (ctx, next) =>
         await ctx.Response.Body.WriteAsync(bytes);
         return;
     }
-    if (ctx.Request.Path == "/ping")
-    {
-        ctx.Response.StatusCode = 200;
-        return;
-    }
-    if (ctx.Request.Path == "/ready")
-    {
-        if (vectorStore.IsReady)
-        {
-            ctx.Response.StatusCode = 200;
-            await ctx.Response.WriteAsync("Ready");
-            return;
-        }
-
-        ctx.Response.StatusCode = 204;
-        return;
-    }
     await next(ctx);
 });
+
+app.MapGet("/ready", () => Results.Ok("Ready"));
 
 app.Run();
