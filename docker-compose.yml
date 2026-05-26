@@ -4,8 +4,6 @@ x-api: &api-base
     dockerfile: Dockerfile
   networks:
     - app-network
-  volumes:
-    - sockets:/sockets
   restart: unless-stopped
   deploy:
     resources:
@@ -19,13 +17,13 @@ services:
     <<: *api-base
     container_name: api1
     environment:
-      SOCKET_PATH: /sockets/api1.sock
+      ASPNETCORE_URLS: http://0.0.0.0:8080
     cpuset: "0,1"
   api2:
     <<: *api-base
     container_name: api2
     environment:
-      SOCKET_PATH: /sockets/api2.sock
+      ASPNETCORE_URLS: http://0.0.0.0:8080
     cpuset: "2,3"
   haproxy:
     image: haproxy:3.1-alpine
@@ -34,7 +32,6 @@ services:
       - "9999:80"
     volumes:
       - ./infra/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - sockets:/sockets
     depends_on:
       - api1
       - api2
@@ -51,11 +48,3 @@ services:
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  sockets:
-    driver: local
-    driver_opts:
-      type: tmpfs
-      device: tmpfs
-      o: "size=4m,mode=0777"
