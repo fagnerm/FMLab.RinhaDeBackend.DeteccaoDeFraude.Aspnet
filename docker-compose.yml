@@ -1,12 +1,10 @@
 x-api: &api-base
-  image: ghcr.io/fagnerm/fmlab-rinha-fraude:13ab445
+  image: ghcr.io/fagnerm/fmlab-rinha-fraude:latest
   user: root
   environment:
     ASPNETCORE_ENVIRONMENT: Production
   networks:
     - app-network
-  volumes:
-    - sockets:/sockets
   restart: unless-stopped
   deploy:
     resources:
@@ -21,7 +19,7 @@ services:
     container_name: api1
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      SOCKET_PATH: /sockets/api1.sock
+      ASPNETCORE_URLS: http://0.0.0.0:8080
     cpuset: "0,1"
 
   api2:
@@ -29,7 +27,7 @@ services:
     container_name: api2
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      SOCKET_PATH: /sockets/api2.sock
+      ASPNETCORE_URLS: http://0.0.0.0:8080
     cpuset: "2,3"
 
   nginx:
@@ -38,7 +36,6 @@ services:
       - "9999:80"
     volumes:
       - ./infra/nginx/nginx.cfg:/etc/nginx/nginx.conf:ro
-      - sockets:/sockets
     depends_on:
       - api1
       - api2
@@ -55,11 +52,3 @@ services:
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  sockets:
-    driver: local
-    driver_opts:
-      type: tmpfs
-      device: tmpfs
-      o: "size=4m,mode=0777"
