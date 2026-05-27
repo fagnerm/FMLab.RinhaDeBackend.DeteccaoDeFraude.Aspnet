@@ -2,8 +2,6 @@ x-api: &api-base
   build:
     context: ./src
     dockerfile: Dockerfile
-  volumes:
-    - sockets:/sockets
   networks:
     - app-network
   restart: unless-stopped
@@ -20,14 +18,14 @@ services:
     container_name: api1
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      SOCKET_PATH: /sockets/api1.sock
+      ASPNETCORE_URLS: http://0.0.0.0:8080
     cpuset: "0,1"
   api2:
     <<: *api-base
     container_name: api2
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      SOCKET_PATH: /sockets/api2.sock
+      ASPNETCORE_URLS: http://0.0.0.0:8080
     cpuset: "2,3"
 
   nginx:
@@ -36,7 +34,6 @@ services:
       - "9999:80"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - sockets:/sockets
     depends_on:
       - api1
       - api2
@@ -53,11 +50,3 @@ services:
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  sockets:
-    driver: local
-    driver_opts:
-      type: tmpfs
-      device: tmpfs
-      o: "size=4m,mode=0777"
