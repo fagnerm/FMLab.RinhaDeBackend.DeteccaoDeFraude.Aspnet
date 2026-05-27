@@ -15,8 +15,8 @@
 
     <!-- Runtime tuning -->
     <TieredCompilation>false</TieredCompilation>
-    <ServerGarbageCollection>true</ServerGarbageCollection>
-    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
 
     <!-- Strip unused metadata for smaller / faster binary -->
     <DebuggerSupport>false</DebuggerSupport>
