@@ -11,5 +11,5 @@ public class Customer
     public int TransactionsLast24h { get; init; }
 
     [JsonPropertyName("known_merchants")]
-    public HashSet<string> KnownMerchants { get; init; } = [];
+    public string[] KnownMerchants { get; init; } = [];
 }

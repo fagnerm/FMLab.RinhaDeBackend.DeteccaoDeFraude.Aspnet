@@ -39,7 +39,7 @@ public class FraudDetectionHandler(
         v[8]  = Clamp(r.Customer.TransactionsLast24h / p.MaxTxCount24h);
         v[9]  = r.Terminal.IsOnline ? 1f : 0f;
         v[10] = r.Terminal.CardPresent ? 1f : 0f;
-        v[11] = r.Customer.KnownMerchants.Contains(r.Merchant.Id) ? 0f : 1f;
+        v[11] = Array.IndexOf(r.Customer.KnownMerchants, r.Merchant.Id) >= 0 ? 0f : 1f;
         v[12] = referenceData.MccRisk.GetValueOrDefault(r.Merchant.MerchantCategoryCode, 0.50f);
         v[13] = Clamp(merchantAvg / p.MaxMerchantAvgAmount);
     }
