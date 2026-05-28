@@ -494,3 +494,6 @@ $RECYCLE.BIN/
 **/App_Data/references.csv
 infra/db/
 .claude/
+
+#reference folder
+references/
