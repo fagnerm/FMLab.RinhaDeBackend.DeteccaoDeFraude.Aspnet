@@ -30,7 +30,9 @@ var vectorStore   = new VectorStore();
 var responseTable = new FraudResponseTable();
 var handler       = new FraudDetectionHandler(referenceData, vectorStore, responseTable);
 
-await vectorStore.LoadAsync();
+// 0 = carregando, 1 = pronto para servir tráfego.
+// /ready devolve 503 enquanto = 0; flip para 1 só após load + warmup.
+var ready = 0;
 
 var app = builder.Build();
 
@@ -63,6 +65,27 @@ app.Use(async (ctx, next) =>
     await next(ctx);
 });
 
-app.MapGet("/ready", () => Results.Ok("Ready"));
+app.MapGet("/ready", () =>
+    Volatile.Read(ref ready) == 1
+        ? Results.Ok("Ready")
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
+
+// Inicia load do .idx + warmup só depois que Kestrel já está listening (socket bindado, chmod aplicado).
+// O endpoint /ready devolve 503 durante esse período — runner/health check espera o 200.
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = Task.Run(async () =>
+    {
+        await vectorStore.LoadAsync();
+
+        // Warmup: aquece cache/branch predictors da CPU executando o caminho quente.
+        // Sem isso a primeira centena de requests paga o custo de cold cache.
+        var dummy = new float[14] { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
+        for (int i = 0; i < 200; i++) vectorStore.Search(dummy);
+
+        Volatile.Write(ref ready, 1);
+    });
+});
 
 app.Run();
