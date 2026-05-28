@@ -76,7 +76,7 @@ public class VectorStore
     // Quantos centroides varremos na busca ANN.
     // SearchClusters=5 → varremos os 5 clusters mais próximos da query.
     // Tradeoff: mais clusters = maior recall, maior latência.
-    private const int SearchClusters = 20;
+    private const int SearchClusters = 12;
 
     // ── Arrays de dados ──────────────────────────────────────────────────────────
 
